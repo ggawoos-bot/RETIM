@@ -1,0 +1,229 @@
+:root {
+    --color-green: #28a745;
+    --color-yellow: #ffc107;
+    --color-red: #dc3545;
+    --color-grey: #6c757d;
+    --color-light-grey: #f8f9fa;
+    --color-dark-grey: #343a40;
+    --color-primary: #007bff;
+    --color-white: #ffffff;
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    font-family: var(--font-family);
+    background-color: var(--color-light-grey);
+    color: var(--color-dark-grey);
+    transition: background-color 0.5s ease;
+}
+
+body.status-green { background-color: var(--color-green); }
+body.status-yellow { background-color: var(--color-yellow); }
+body.status-red { background-color: var(--color-red); }
+body.status-grey { background-color: var(--color-grey); }
+
+#root {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.app-container {
+    width: 100%;
+    max-width: 500px;
+    padding: 2rem;
+    background-color: var(--color-white);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    text-align: center;
+}
+
+h1, h2, h3 {
+    margin-top: 0;
+}
+
+/* --- Role Selection --- */
+.role-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
+}
+
+/* --- Viewer View --- */
+.viewer-view {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 1rem;
+    color: var(--color-white);
+}
+.status-yellow .meeting-name, .status-yellow .timer-display { color: var(--color-dark-grey); }
+.status-default .meeting-name, .status-default .timer-display { color: var(--color-dark-grey); }
+
+.meeting-name {
+    font-size: 4vw;
+    font-weight: 300;
+    margin-bottom: 1rem;
+}
+
+.timer-display {
+    font-size: 15vw;
+    font-weight: 700;
+    letter-spacing: 2px;
+    line-height: 1;
+}
+
+/* --- Admin Dashboard --- */
+.admin-dashboard {
+    width: 100%;
+    position: relative;
+}
+
+.back-button {
+    position: absolute;
+    top: -1rem;
+    left: -1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--color-grey);
+}
+
+.admin-panel {
+    background-color: var(--color-light-grey);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    text-align: left;
+}
+
+.admin-panel h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    text-align: center;
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 0.75rem;
+}
+
+.timer-display-small {
+    font-size: 2.5rem;
+    font-weight: 600;
+    text-align: center;
+    margin-bottom: 1rem;
+    color: var(--color-primary);
+}
+
+/* --- Form & Controls --- */
+.button {
+    width: 100%;
+    padding: 0.8rem 1.2rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.button-primary {
+    background-color: var(--color-primary);
+    color: var(--color-white);
+}
+.button-primary:hover:not(:disabled) { opacity: 0.9; }
+.button:disabled { cursor: not-allowed; background-color: var(--color-grey); }
+
+.button-secondary {
+    background-color: var(--color-white);
+    color: var(--color-dark-grey);
+    border: 1px solid #dee2e6;
+}
+.button-secondary:hover { background-color: #e9ecef; }
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.input-group label {
+    font-weight: 500;
+}
+
+.input-field, .time-input-group input {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+}
+
+.time-input-group {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.time-input-group span {
+    font-size: 1.2rem;
+    color: #adb5bd;
+    text-align: center;
+}
+
+.controls, .share-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.share-controls {
+    margin-top: 1rem;
+}
+
+.qr-code-container {
+    margin-top: 1.5rem;
+    text-align: center;
+    padding: 1rem;
+    background-color: var(--color-white);
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.qr-code-container img {
+    display: block;
+    margin: 0 auto 0.5rem;
+}
+
+.qr-code-container p {
+    font-size: 0.9rem;
+    color: var(--color-grey);
+    margin: 0;
+}
+
+
+/* --- Responsive --- */
+@media (min-width: 768px) {
+    .timer-display {
+        font-size: 8rem;
+    }
+    .meeting-name {
+        font-size: 3rem;
+    }
+}
