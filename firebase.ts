@@ -1,8 +1,6 @@
-// FIX: Use the Firebase compat library for initialization to resolve module resolution issues.
-import firebase from 'firebase/compat/app';
-// Import the Realtime Database compat library to ensure it's included.
-import 'firebase/compat/database';
-import { getDatabase } from "firebase/database";
+// fix: Switched to Firebase v8 'compat' imports to resolve initialization error.
+import firebase from 'firebase/app';
+import 'firebase/database';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -16,10 +14,8 @@ const firebaseConfig = {
     databaseURL: "https://timerprj-default-rtdb.firebaseio.com"
 };
 
-// Initialize Firebase using the compat library, preventing re-initialization.
-if (!firebase.apps.length) {
-  firebase.initializeApp(firebaseConfig);
-}
+// Initialize Firebase
+const app = firebase.initializeApp(firebaseConfig);
 
-// Export the v9 Realtime Database instance. getDatabase() will use the default app initialized above.
-export const db = getDatabase();
+// Get a reference to the database service
+export const db = firebase.database();
