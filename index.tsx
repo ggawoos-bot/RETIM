@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { db } from './firebase';
-// FIX: Removed unused v9 modular imports from 'firebase/database' as we are switching to v8 compat syntax.
-// import { ref, set, onValue, update, push } from 'firebase/database';
+// Fix: Use Firebase v8 compat API to align with firebase.ts and resolve errors.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/database';
+
 
 type Mode = 'select' | 'admin' | 'viewer' | 'loading';
 type TimerStatus = 'default' | 'green' | 'yellow' | 'red' | 'grey';
@@ -181,7 +183,7 @@ const App = () => {
     // Update RealtimeDB with new state
     const updateRealtimeDBState = useCallback((newState) => {
         if (sessionId) {
-            // FIX: Updated to v8 syntax for updating data (`db.ref(...).update(...)`).
+            // Fix: Use Firebase v8 compat API.
             db.ref('timers/' + sessionId).update(newState);
         }
     }, [sessionId]);
@@ -224,10 +226,10 @@ const App = () => {
 
             if ((hashMode === 'admin' || hashMode === 'view') && id) {
                 setSessionId(id);
-                // FIX: Updated to v8 syntax for creating a database reference (`db.ref(...)`).
+                // Fix: Use Firebase v8 compat API.
                 const sessionRef = db.ref('timers/' + id);
-                // FIX: Updated to v8 `on()` method for listening to data changes and created a compatible unsubscribe function.
-                const listener = (snapshot) => {
+                // Fix: Use Firebase v8 compat API and correct DataSnapshot type.
+                const listener = (snapshot: firebase.database.DataSnapshot) => {
                     if (snapshot.exists()) {
                         setAppState(snapshot.val() as typeof initialState);
                     } else {
@@ -235,7 +237,9 @@ const App = () => {
                         window.location.hash = ''; // Redirect to home
                     }
                 };
+                // Fix: Use Firebase v8 compat API for attaching listener.
                 sessionRef.on('value', listener);
+                // Fix: Create unsubscribe function for v8 compat API.
                 unsubscribeFromDB = () => sessionRef.off('value', listener);
                 setMode(hashMode as Mode);
 
@@ -259,11 +263,12 @@ const App = () => {
 
     const createAdminSession = async () => {
         try {
-            // FIX: Updated to v8 syntax for creating a new child item (`db.ref(...).push()`).
+            // Fix: Use Firebase v8 compat API.
             const newSessionRef = db.ref('timers').push();
-            // FIX: Updated to v8 syntax for setting data (`ref.set(...)`).
             await newSessionRef.set(initialState);
-            window.location.hash = `admin/${newSessionRef.key}`;
+            if (newSessionRef.key) {
+                window.location.hash = `admin/${newSessionRef.key}`;
+            }
         } catch (error) {
             console.error("Error creating new session:", error);
             alert("타이머를 생성하는데 실패했습니다. 다시 시도해주세요.");
