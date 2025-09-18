@@ -1,10 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { db } from './firebase';
-import { collection, doc, addDoc, updateDoc, onSnapshot, DocumentSnapshot } from 'firebase/firestore';
+// FIX: Import firebase app type for DocumentSnapshot.
+import type firebase from 'firebase/app';
+
 
 type Mode = 'select' | 'admin' | 'viewer' | 'loading';
 type TimerStatus = 'default' | 'green' | 'yellow' | 'red' | 'grey';
+// FIX: Define DocumentSnapshot type for Firebase v8.
+type DocumentSnapshot = firebase.firestore.DocumentSnapshot;
 
 // --- Initial State ---
 const initialState = {
@@ -178,10 +182,11 @@ const App = () => {
     const intervalRef = useRef<number | null>(null);
 
     // Update Firestore with new state
-    const updateFirestoreState = useCallback(async (newState: Partial<typeof initialState>) => {
+    const updateFirestoreState = useCallback((newState: Partial<typeof initialState>) => {
         if (sessionId) {
-            const sessionRef = doc(db, 'timers', sessionId);
-            await updateDoc(sessionRef, newState);
+            // FIX: Use Firebase v8 syntax to update a document.
+            const sessionRef = db.collection('timers').doc(sessionId);
+            sessionRef.update(newState);
         }
     }, [sessionId]);
 
@@ -191,121 +196,111 @@ const App = () => {
         
         if (mode === 'admin' && appState.isActive && !appState.isPaused) {
             intervalRef.current = window.setInterval(() => {
-                setAppState(prev => {
-                    const newRemaining = prev.remainingSeconds - 1;
-                    if (newRemaining >= 0) {
-                        updateFirestoreState({ remainingSeconds: newRemaining });
-                        return { ...prev, remainingSeconds: newRemaining };
-                    } else {
-                        updateFirestoreState({ remainingSeconds: 0, isActive: false, isPaused: false });
-                        clearInterval(intervalRef.current!);
-                        return { ...prev, remainingSeconds: 0, isActive: false, isPaused: false };
-                    }
-                });
+                const newRemaining = appState.remainingSeconds - 1;
+                if (newRemaining >= 0) {
+                     // Update only remainingSeconds to avoid race conditions with other state changes
+                    updateFirestoreState({ remainingSeconds: newRemaining });
+                } else {
+                    updateFirestoreState({ remainingSeconds: 0, isActive: false });
+                    if (intervalRef.current) clearInterval(intervalRef.current);
+                }
             }, 1000);
         }
 
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [mode, appState.isActive, appState.isPaused, updateFirestoreState]);
+    }, [mode, appState.isActive, appState.isPaused, appState.remainingSeconds, updateFirestoreState]);
 
-    // Handle URL hash changes and setup Firestore listener
+
+    // URL hash change listener to determine mode and session
     useEffect(() => {
+        let unsubscribeFromDB: (() => void) | null = null;
+
         const handleHashChange = () => {
+            if (unsubscribeFromDB) {
+                unsubscribeFromDB();
+                unsubscribeFromDB = null;
+            }
+
             const hash = window.location.hash.slice(1);
-            if (hash.startsWith('admin/')) {
-                const id = hash.split('/')[1];
+            const [hashMode, id] = hash.split('/');
+
+            if ((hashMode === 'admin' || hashMode === 'view') && id) {
                 setSessionId(id);
-                setMode('admin');
-            } else if (hash.startsWith('view/')) {
-                const id = hash.split('/')[1];
-                setSessionId(id);
-                setMode('viewer');
+                // FIX: Use Firebase v8 syntax to get a document reference.
+                const sessionRef = db.collection('timers').doc(id);
+
+                // FIX: Use Firebase v8 syntax for onSnapshot and check for document existence.
+                unsubscribeFromDB = sessionRef.onSnapshot((snapshot: DocumentSnapshot) => {
+                    if (snapshot.exists) {
+                        setAppState(snapshot.data() as typeof initialState);
+                    } else {
+                        console.error("Timer session not found!");
+                        window.location.hash = ''; // Redirect to home
+                    }
+                });
+                setMode(hashMode as Mode);
+
             } else {
                 setSessionId(null);
+                setAppState(initialState);
                 setMode('select');
             }
         };
 
         window.addEventListener('hashchange', handleHashChange);
-        handleHashChange(); // Initial check
+        handleHashChange(); // Initial call
 
-        return () => window.removeEventListener('hashchange', handleHashChange);
+        return () => {
+            window.removeEventListener('hashchange', handleHashChange);
+            if (unsubscribeFromDB) {
+                unsubscribeFromDB();
+            }
+        };
     }, []);
 
-    // Firestore listener
-    useEffect(() => {
-        if (!sessionId) {
-            if (mode !== 'select') setMode('loading'); // Show loading while waiting for session
-            return;
-        }
-
-        const sessionRef = doc(db, 'timers', sessionId);
-        const unsubscribe = onSnapshot(
-            sessionRef,
-            (doc: DocumentSnapshot) => {
-                if (doc.exists()) {
-                    const data = doc.data();
-                    if (data && typeof data.remainingSeconds === 'number') {
-                        setAppState(prevState => ({ ...prevState, ...data }));
-                    }
-                } else {
-                    console.error('Session not found');
-                    window.location.hash = '';
-                }
-            },
-            (error) => {
-                console.error("Firestore listener error:", error);
-            }
-        );
-
-        return () => unsubscribe();
-    }, [sessionId, mode]);
-    
-    // Create new admin session
     const createAdminSession = async () => {
-        setMode('loading');
         try {
-            const timersCollection = collection(db, 'timers');
-            const newSessionRef = await addDoc(timersCollection, initialState);
-            window.location.hash = `admin/${newSessionRef.id}`;
+            // FIX: Use Firebase v8 syntax to get a collection reference and add a document.
+            const timersCollection = db.collection('timers');
+            const newSessionRef = await timersCollection.add(initialState);
+            if (newSessionRef.id) {
+                window.location.hash = `admin/${newSessionRef.id}`;
+            }
         } catch (error) {
-            console.error("Error creating session:", error);
-            setMode('select'); // Revert to select mode on error
+            console.error("Error creating new session:", error);
+            alert("타이머를 생성하는데 실패했습니다. 다시 시도해주세요.");
         }
     };
-    
-    // Render logic based on mode
-    if (mode === 'loading') {
-        return <div className="app-container">Loading...</div>;
-    }
-    
-    if (mode === 'select') {
-        return (
-            <div className="app-container">
-                <RoleSelection createAdminSession={createAdminSession} />
-            </div>
-        );
-    }
+
+    const renderContent = () => {
+        if (mode === 'loading') {
+            return <div className="loading">Loading...</div>;
+        }
+
+        switch (mode) {
+            case 'admin':
+                return <AdminDashboard appState={appState} sessionId={sessionId} updateFirestoreState={updateFirestoreState} />;
+            case 'viewer':
+                return <ViewerView appState={appState} />;
+            case 'select':
+            default:
+                return <RoleSelection createAdminSession={createAdminSession} />;
+        }
+    };
     
     if (mode === 'viewer') {
         return <ViewerView appState={appState} />;
     }
 
-    if (mode === 'admin') {
-        return (
-            <div className="app-container">
-                <AdminDashboard appState={appState} sessionId={sessionId} updateFirestoreState={updateFirestoreState} />
-            </div>
-        );
-    }
-
-    return null;
+    return (
+        <div className="app-container">
+            {renderContent()}
+        </div>
+    );
 };
 
 const container = document.getElementById('root');
-if (container) {
-    const root = createRoot(container);
-    root.render(<App />);
-}
+const root = createRoot(container!);
+root.render(<App />);

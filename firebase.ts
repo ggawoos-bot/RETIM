@@ -1,6 +1,6 @@
-// FIX: Changed to namespace imports to resolve potential module resolution issues with named imports.
-import * as firebaseApp from "firebase/app";
-import * as firestore from "firebase/firestore";
+// Fix: Import initializeApp directly from "firebase/app" for Firebase v9+ SDK.
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -14,7 +14,6 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = firebaseApp.initializeApp(firebaseConfig);
-
-// Export a Firestore instance
-export const db = firestore.getFirestore(app);
+// Fix: Call the imported initializeApp function directly.
+const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
