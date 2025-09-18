@@ -1,6 +1,7 @@
-// FIX: Changed Firebase imports to use v8 syntax, which is compatible with older versions of the Firebase SDK.
-import firebase from 'firebase/app';
-import 'firebase/database';
+// FIX: Use Firebase v9 syntax.
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -15,9 +16,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// FIX: Changed to v8 namespaced `initializeApp`.
-firebase.initializeApp(firebaseConfig);
-
-// Get a reference to the database service
-// FIX: Changed to v8 namespaced `database()` to get the database instance.
-export const db = firebase.database();
+// FIX: Use Firebase v9 initialization syntax.
+const app = initializeApp(firebaseConfig);
+// FIX: Use Firebase v9 firestore export.
+export const db = getFirestore(app);
