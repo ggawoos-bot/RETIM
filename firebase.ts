@@ -1,6 +1,5 @@
-// FIX: Use namespace import to avoid potential module resolution issues.
-import * as firebase from "firebase/app";
-import * as firestore from "firebase/firestore";
+import * as firebaseApp from "firebase/app";
+import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -14,7 +13,6 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// FIX: Call initializeApp from the firebase namespace.
-const app = firebase.initializeApp(firebaseConfig);
-// FIX: Call getFirestore from the firestore namespace.
-export const db = firestore.getFirestore(app);
+// FIX: Use the namespace import to call initializeApp
+const app = firebaseApp.initializeApp(firebaseConfig);
+export const db = getFirestore(app);

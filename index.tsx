@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { db } from './firebase';
-import { collection, doc, addDoc, updateDoc, onSnapshot, DocumentSnapshot } from 'firebase/firestore';
-
+import { collection, addDoc, doc, updateDoc, onSnapshot, DocumentSnapshot } from 'firebase/firestore';
 
 type Mode = 'select' | 'admin' | 'viewer' | 'loading';
 type TimerStatus = 'default' | 'green' | 'yellow' | 'red' | 'grey';
@@ -256,8 +255,7 @@ const App = () => {
 
     const createAdminSession = async () => {
         try {
-            const timersCollection = collection(db, 'timers');
-            const newSessionRef = await addDoc(timersCollection, initialState);
+            const newSessionRef = await addDoc(collection(db, 'timers'), initialState);
             if (newSessionRef.id) {
                 window.location.hash = `admin/${newSessionRef.id}`;
             }
