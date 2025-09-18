@@ -1,6 +1,6 @@
 // fix: Switched to Firebase v8 'compat' imports to resolve initialization error.
-import firebase from 'firebase/app';
-import 'firebase/database';
+import { initializeApp } from 'firebase/app';
+import { getDatabase } from 'firebase/database';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
