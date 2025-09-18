@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { db } from './firebase';
 // Fix: Use Firebase v8 compat API to align with firebase.ts and resolve errors.
 import firebase from 'firebase/compat/app';
-import 'firebase/compat/database';
+import 'firebase/compat/firestore';
 
 
 type Mode = 'select' | 'admin' | 'viewer' | 'loading';
@@ -65,7 +65,7 @@ const ViewerView = ({ appState }) => {
     );
 };
 
-const AdminDashboard = ({ appState, sessionId, updateRealtimeDBState }) => {
+const AdminDashboard = ({ appState, sessionId, updateFirestoreState }) => {
     const [minutes, setMinutes] = useState(Math.floor(appState.totalSeconds / 60));
     const [seconds, setSeconds] = useState(appState.totalSeconds % 60);
     const [meetingName, setMeetingName] = useState(appState.meetingName);
@@ -82,7 +82,7 @@ const AdminDashboard = ({ appState, sessionId, updateRealtimeDBState }) => {
     
     const handleSettingsSave = () => {
         const totalSeconds = (minutes * 60) + seconds;
-        updateRealtimeDBState({
+        updateFirestoreState({
             ...initialState,
             totalSeconds,
             remainingSeconds: totalSeconds,
@@ -92,14 +92,14 @@ const AdminDashboard = ({ appState, sessionId, updateRealtimeDBState }) => {
 
     const handleStartPause = () => {
         if (!appState.isActive) {
-            updateRealtimeDBState({ isActive: true, isPaused: false });
+            updateFirestoreState({ isActive: true, isPaused: false });
         } else {
-            updateRealtimeDBState({ isPaused: !appState.isPaused });
+            updateFirestoreState({ isPaused: !appState.isPaused });
         }
     };
 
     const handleReset = () => {
-        updateRealtimeDBState({
+        updateFirestoreState({
             isActive: false,
             isPaused: false,
             remainingSeconds: appState.totalSeconds
@@ -180,11 +180,10 @@ const App = () => {
     const [sessionId, setSessionId] = useState<string | null>(null);
     const intervalRef = useRef<number | null>(null);
 
-    // Update RealtimeDB with new state
-    const updateRealtimeDBState = useCallback((newState) => {
+    // Update Firestore with new state
+    const updateFirestoreState = useCallback((newState) => {
         if (sessionId) {
-            // Fix: Use Firebase v8 compat API.
-            db.ref('timers/' + sessionId).update(newState);
+            db.collection('timers').doc(sessionId).update(newState);
         }
     }, [sessionId]);
 
@@ -197,9 +196,9 @@ const App = () => {
                 const newRemaining = appState.remainingSeconds - 1;
                 if (newRemaining >= 0) {
                      // Update only remainingSeconds to avoid race conditions with other state changes
-                    updateRealtimeDBState({ remainingSeconds: newRemaining });
+                    updateFirestoreState({ remainingSeconds: newRemaining });
                 } else {
-                    updateRealtimeDBState({ remainingSeconds: 0, isActive: false });
+                    updateFirestoreState({ remainingSeconds: 0, isActive: false });
                     if (intervalRef.current) clearInterval(intervalRef.current);
                 }
             }, 1000);
@@ -208,7 +207,7 @@ const App = () => {
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, [mode, appState.isActive, appState.isPaused, appState.remainingSeconds, updateRealtimeDBState]);
+    }, [mode, appState.isActive, appState.isPaused, appState.remainingSeconds, updateFirestoreState]);
 
 
     // URL hash change listener to determine mode and session
@@ -226,21 +225,16 @@ const App = () => {
 
             if ((hashMode === 'admin' || hashMode === 'view') && id) {
                 setSessionId(id);
-                // Fix: Use Firebase v8 compat API.
-                const sessionRef = db.ref('timers/' + id);
-                // Fix: Use Firebase v8 compat API and correct DataSnapshot type.
-                const listener = (snapshot: firebase.database.DataSnapshot) => {
-                    if (snapshot.exists()) {
-                        setAppState(snapshot.val() as typeof initialState);
+                const sessionRef = db.collection('timers').doc(id);
+
+                unsubscribeFromDB = sessionRef.onSnapshot((snapshot: firebase.firestore.DocumentSnapshot) => {
+                    if (snapshot.exists) {
+                        setAppState(snapshot.data() as typeof initialState);
                     } else {
                         console.error("Timer session not found!");
                         window.location.hash = ''; // Redirect to home
                     }
-                };
-                // Fix: Use Firebase v8 compat API for attaching listener.
-                sessionRef.on('value', listener);
-                // Fix: Create unsubscribe function for v8 compat API.
-                unsubscribeFromDB = () => sessionRef.off('value', listener);
+                });
                 setMode(hashMode as Mode);
 
             } else {
@@ -263,11 +257,10 @@ const App = () => {
 
     const createAdminSession = async () => {
         try {
-            // Fix: Use Firebase v8 compat API.
-            const newSessionRef = db.ref('timers').push();
-            await newSessionRef.set(initialState);
-            if (newSessionRef.key) {
-                window.location.hash = `admin/${newSessionRef.key}`;
+            // Use Firestore's `add` to create a new document with an auto-generated ID
+            const newSessionRef = await db.collection('timers').add(initialState);
+            if (newSessionRef.id) {
+                window.location.hash = `admin/${newSessionRef.id}`;
             }
         } catch (error) {
             console.error("Error creating new session:", error);
@@ -282,7 +275,7 @@ const App = () => {
 
         switch (mode) {
             case 'admin':
-                return <AdminDashboard appState={appState} sessionId={sessionId} updateRealtimeDBState={updateRealtimeDBState} />;
+                return <AdminDashboard appState={appState} sessionId={sessionId} updateFirestoreState={updateFirestoreState} />;
             case 'viewer':
                 return <ViewerView appState={appState} />;
             case 'select':
