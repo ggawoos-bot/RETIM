@@ -1,5 +1,5 @@
-// Fix: Import initializeApp directly from "firebase/app" for Firebase v9+ SDK.
-import { initializeApp } from "firebase/app";
+// Fix: Use the compat library to initialize Firebase, avoiding module resolution issues.
+import firebase from "firebase/compat/app";
 import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
@@ -14,6 +14,5 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// Fix: Call the imported initializeApp function directly.
-const app = initializeApp(firebaseConfig);
+const app = firebase.initializeApp(firebaseConfig);
 export const db = getFirestore(app);

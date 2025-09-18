@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { db } from './firebase';
-// FIX: Import firebase app type for DocumentSnapshot.
-import type firebase from 'firebase/app';
+import { collection, doc, addDoc, updateDoc, onSnapshot, DocumentSnapshot } from 'firebase/firestore';
 
 
 type Mode = 'select' | 'admin' | 'viewer' | 'loading';
 type TimerStatus = 'default' | 'green' | 'yellow' | 'red' | 'grey';
-// FIX: Define DocumentSnapshot type for Firebase v8.
-type DocumentSnapshot = firebase.firestore.DocumentSnapshot;
 
 // --- Initial State ---
 const initialState = {
@@ -184,9 +181,8 @@ const App = () => {
     // Update Firestore with new state
     const updateFirestoreState = useCallback((newState: Partial<typeof initialState>) => {
         if (sessionId) {
-            // FIX: Use Firebase v8 syntax to update a document.
-            const sessionRef = db.collection('timers').doc(sessionId);
-            sessionRef.update(newState);
+            const sessionRef = doc(db, 'timers', sessionId);
+            updateDoc(sessionRef, newState);
         }
     }, [sessionId]);
 
@@ -228,12 +224,10 @@ const App = () => {
 
             if ((hashMode === 'admin' || hashMode === 'view') && id) {
                 setSessionId(id);
-                // FIX: Use Firebase v8 syntax to get a document reference.
-                const sessionRef = db.collection('timers').doc(id);
+                const sessionRef = doc(db, 'timers', id);
 
-                // FIX: Use Firebase v8 syntax for onSnapshot and check for document existence.
-                unsubscribeFromDB = sessionRef.onSnapshot((snapshot: DocumentSnapshot) => {
-                    if (snapshot.exists) {
+                unsubscribeFromDB = onSnapshot(sessionRef, (snapshot: DocumentSnapshot) => {
+                    if (snapshot.exists()) {
                         setAppState(snapshot.data() as typeof initialState);
                     } else {
                         console.error("Timer session not found!");
@@ -262,9 +256,8 @@ const App = () => {
 
     const createAdminSession = async () => {
         try {
-            // FIX: Use Firebase v8 syntax to get a collection reference and add a document.
-            const timersCollection = db.collection('timers');
-            const newSessionRef = await timersCollection.add(initialState);
+            const timersCollection = collection(db, 'timers');
+            const newSessionRef = await addDoc(timersCollection, initialState);
             if (newSessionRef.id) {
                 window.location.hash = `admin/${newSessionRef.id}`;
             }
