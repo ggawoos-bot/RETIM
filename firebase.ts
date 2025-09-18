@@ -1,6 +1,6 @@
-// Fix: Use the compat library to initialize Firebase, avoiding module resolution issues.
-import firebase from "firebase/compat/app";
-import { getFirestore } from "firebase/firestore";
+// FIX: Use namespace import to avoid potential module resolution issues.
+import * as firebase from "firebase/app";
+import * as firestore from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
@@ -14,5 +14,7 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
+// FIX: Call initializeApp from the firebase namespace.
 const app = firebase.initializeApp(firebaseConfig);
-export const db = getFirestore(app);
+// FIX: Call getFirestore from the firestore namespace.
+export const db = firestore.getFirestore(app);
