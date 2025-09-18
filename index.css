@@ -56,9 +56,19 @@ h1, h2, h3 {
 .role-selection {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1rem;
     width: 100%;
 }
+.role-selection p {
+    margin: 0.5rem 0;
+    color: var(--color-grey);
+}
+.role-selection .description-text {
+    font-size: 0.9rem;
+    color: #888;
+    margin-top: 1rem;
+}
+
 
 /* --- Viewer View --- */
 .viewer-view {

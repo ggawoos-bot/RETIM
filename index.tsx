@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
+import { db } from './firebase';
+import { ref, set, onValue, update, push } from 'firebase/database';
 
-type Mode = 'select' | 'admin' | 'viewer';
+type Mode = 'select' | 'admin' | 'viewer' | 'loading';
 type TimerStatus = 'default' | 'green' | 'yellow' | 'red' | 'grey';
 
-// --- App State, Broadcast Channel, and LocalStorage for real-time sync ---
-const broadcastChannel = new BroadcastChannel('presentation_timer_channel');
-const STORAGE_KEY = 'presentation_timer_state';
-
+// --- Initial State ---
 const initialState = {
     meetingName: '팀 주간 회의',
     totalSeconds: 15 * 60,
@@ -33,15 +32,14 @@ const getStatus = (remainingSeconds: number, isActive: boolean, isPaused: boolea
 
 // --- Components ---
 
-const RoleSelection = ({ setMode }: { setMode: (mode: Mode) => void }) => (
+const RoleSelection = ({ createAdminSession }: { createAdminSession: () => void }) => (
     <div className="role-selection">
         <h1>발표 타이머</h1>
-        <button className="button button-primary" onClick={() => setMode('viewer')} aria-label="발표 시간 확인하기">
-            발표 시간 확인하기
+        <p>타이머를 만들거나 공유받은 링크를 통해 참여하세요.</p>
+        <button className="button button-primary" onClick={createAdminSession} aria-label="타이머 관리하기">
+            새 타이머 만들기
         </button>
-        <button className="button button-secondary" onClick={() => setMode('admin')} aria-label="타이머 관리하기">
-            타이머 관리하기
-        </button>
+        <p className="description-text">타이머를 보려면 관리자가 공유한 링크 또는 QR 코드가 필요합니다.</p>
     </div>
 );
 
@@ -49,7 +47,6 @@ const ViewerView = ({ appState }) => {
     const { remainingSeconds, meetingName, isActive, isPaused } = appState;
     const status = getStatus(remainingSeconds, isActive, isPaused);
 
-    // Apply status to body for immersive background color
     useEffect(() => {
         document.body.className = `status-${status}`;
         return () => {
@@ -65,52 +62,24 @@ const ViewerView = ({ appState }) => {
     );
 };
 
-const AdminDashboard = ({ appState, updateAppState, setMode }) => {
+const AdminDashboard = ({ appState, sessionId, updateRealtimeDBState }) => {
     const [minutes, setMinutes] = useState(Math.floor(appState.totalSeconds / 60));
     const [seconds, setSeconds] = useState(appState.totalSeconds % 60);
     const [meetingName, setMeetingName] = useState(appState.meetingName);
     const [showQr, setShowQr] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const shareUrl = `${window.location.origin}${window.location.pathname}#view&name=${encodeURIComponent(appState.meetingName)}&time=${appState.totalSeconds}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}#view/${sessionId}`;
 
-    // Effect to keep local form state in sync with global app state
     useEffect(() => {
         setMinutes(Math.floor(appState.totalSeconds / 60));
         setSeconds(appState.totalSeconds % 60);
         setMeetingName(appState.meetingName);
     }, [appState.totalSeconds, appState.meetingName]);
-
-    // Timer logic - ONLY THE ADMIN RUNS THIS
-    useEffect(() => {
-        let intervalId: number | null = null;
-        if (appState.isActive && !appState.isPaused) {
-            intervalId = window.setInterval(() => {
-                const newRemaining = appState.remainingSeconds - 1;
-                if (newRemaining >= 0) {
-                    updateAppState({
-                        ...appState,
-                        remainingSeconds: newRemaining,
-                    });
-                } else {
-                    // Timer finished, stop it.
-                    updateAppState({
-                        ...appState,
-                        remainingSeconds: 0,
-                        isActive: false,
-                    });
-                }
-            }, 1000);
-        }
-        return () => {
-            if (intervalId) clearInterval(intervalId);
-        };
-    }, [appState.isActive, appState.isPaused, appState.remainingSeconds, updateAppState]);
-
-
+    
     const handleSettingsSave = () => {
         const totalSeconds = (minutes * 60) + seconds;
-        updateAppState({
+        updateRealtimeDBState({
             ...initialState,
             totalSeconds,
             remainingSeconds: totalSeconds,
@@ -120,15 +89,14 @@ const AdminDashboard = ({ appState, updateAppState, setMode }) => {
 
     const handleStartPause = () => {
         if (!appState.isActive) {
-            updateAppState({ ...appState, isActive: true, isPaused: false });
+            updateRealtimeDBState({ isActive: true, isPaused: false });
         } else {
-            updateAppState({ ...appState, isPaused: !appState.isPaused });
+            updateRealtimeDBState({ isPaused: !appState.isPaused });
         }
     };
 
     const handleReset = () => {
-        updateAppState({
-            ...appState,
+        updateRealtimeDBState({
             isActive: false,
             isPaused: false,
             remainingSeconds: appState.totalSeconds
@@ -150,10 +118,9 @@ const AdminDashboard = ({ appState, updateAppState, setMode }) => {
 
     return (
         <div className="admin-dashboard">
-            <button onClick={() => setMode('select')} className="back-button" aria-label="뒤로가기">&larr;</button>
+            <button onClick={() => window.location.hash = ''} className="back-button" aria-label="뒤로가기">&larr;</button>
             <h2>타이머 관리</h2>
 
-            {/* --- Settings Panel --- */}
             <div className="admin-panel">
                 <h3>설정</h3>
                 <div className="input-group">
@@ -176,7 +143,6 @@ const AdminDashboard = ({ appState, updateAppState, setMode }) => {
                 <button className="button button-primary" onClick={handleSettingsSave} disabled={appState.isActive}>설정 적용</button>
             </div>
 
-            {/* --- Control & Share Panel --- */}
             <div className="admin-panel">
                 <h3>제어 및 공유</h3>
                 <div className="timer-display-small">{formatTime(appState.remainingSeconds)}</div>
@@ -206,113 +172,101 @@ const AdminDashboard = ({ appState, updateAppState, setMode }) => {
 // --- Main App Component ---
 
 const App = () => {
-    const [mode, setMode] = useState<Mode | null>(null);
+    const [mode, setMode] = useState<Mode>('loading');
     const [appState, setAppState] = useState(initialState);
+    const [sessionId, setSessionId] = useState<string | null>(null);
+    const intervalRef = useRef<number | null>(null);
 
-    // Central state update function that broadcasts to all tabs/windows
-    const updateAppState = useCallback((newState) => {
-        setAppState(newState);
-        broadcastChannel.postMessage(newState);
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
-        } catch (error) {
-            console.error("Could not write to localStorage:", error);
+    // Update RealtimeDB with new state
+    const updateRealtimeDBState = useCallback((newState) => {
+        if (sessionId) {
+            // Use update for partial updates, equivalent to merge:true in firestore
+            update(ref(db, 'timers/' + sessionId), newState);
         }
-    }, []);
+    }, [sessionId]);
 
-    // Effect for initializing state and handling incoming sync messages
+    // Admin-only countdown timer logic
     useEffect(() => {
-        // Function to handle state updates from any source
-        const handleStateUpdate = (data) => {
-            if (data && typeof data.remainingSeconds === 'number') {
-                setAppState(data);
-            }
-        };
-
-        // Listen for messages from other tabs in the same browser
-        broadcastChannel.onmessage = (event) => {
-            handleStateUpdate(event.data);
-        };
+        if (intervalRef.current) clearInterval(intervalRef.current);
         
-        // Listen for storage changes from other tabs (more robust)
-        const handleStorageChange = (event: StorageEvent) => {
-            if (event.key === STORAGE_KEY && event.newValue) {
-                try {
-                    handleStateUpdate(JSON.parse(event.newValue));
-                } catch (error) {
-                    console.error("Could not parse state from localStorage:", error);
-                }
-            }
-        };
-        window.addEventListener('storage', handleStorageChange);
-
-        // --- Initial State Loading Logic ---
-        const hash = window.location.hash.slice(1);
-        const savedStateJSON = localStorage.getItem(STORAGE_KEY);
-        let loadedState = null;
-        if (savedStateJSON) {
-            try {
-                loadedState = JSON.parse(savedStateJSON);
-            } catch (e) {
-                console.error("Failed to parse saved state.");
-            }
-        }
-
-        if (hash.startsWith('view')) {
-            const params = new URLSearchParams(hash.substring(hash.indexOf('&') + 1));
-            const name = params.get('name');
-            const time = parseInt(params.get('time') || '0', 10);
-
-            if (name && time > 0) {
-                 // A share link was used. Check if we have a more current state in storage.
-                if (loadedState && loadedState.meetingName === name && loadedState.totalSeconds === time) {
-                    setAppState(loadedState);
+        if (mode === 'admin' && appState.isActive && !appState.isPaused) {
+            intervalRef.current = window.setInterval(() => {
+                const newRemaining = appState.remainingSeconds - 1;
+                if (newRemaining >= 0) {
+                     // Update only remainingSeconds to avoid race conditions with other state changes
+                    updateRealtimeDBState({ remainingSeconds: newRemaining });
                 } else {
-                    // No matching state in storage, use the URL's data.
-                    const newState = {
-                        ...initialState,
-                        meetingName: name,
-                        totalSeconds: time,
-                        remainingSeconds: time
-                    };
-                    setAppState(newState);
+                    updateRealtimeDBState({ remainingSeconds: 0, isActive: false });
+                    if (intervalRef.current) clearInterval(intervalRef.current);
                 }
-                setMode('viewer');
-                return; // Initial setup complete for viewer
-            }
+            }, 1000);
         }
-
-        // If not a viewer link, restore previous session if it exists
-        if(loadedState) {
-            setAppState(loadedState);
-        }
-        
-        setMode('select'); // Default mode if no other state is found
 
         return () => {
-            broadcastChannel.onmessage = null;
-            window.removeEventListener('storage', handleStorageChange);
-        }
+            if (intervalRef.current) clearInterval(intervalRef.current);
+        };
+    }, [mode, appState.isActive, appState.isPaused, appState.remainingSeconds, updateRealtimeDBState]);
+
+
+    // URL hash change listener to determine mode and session
+    useEffect(() => {
+        const handleHashChange = () => {
+            const hash = window.location.hash.slice(1);
+            const [hashMode, id] = hash.split('/');
+
+            if ((hashMode === 'admin' || hashMode === 'view') && id) {
+                setSessionId(id);
+                const sessionRef = ref(db, 'timers/' + id);
+                const unsub = onValue(sessionRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        setAppState(snapshot.val() as typeof initialState);
+                    } else {
+                        console.error("Timer session not found!");
+                        window.location.hash = ''; // Redirect to home
+                    }
+                });
+                setMode(hashMode as Mode);
+                return () => unsub(); // Cleanup subscription
+            } else {
+                setSessionId(null);
+                setAppState(initialState);
+                setMode('select');
+            }
+        };
+
+        window.addEventListener('hashchange', handleHashChange);
+        handleHashChange(); // Initial call
+
+        return () => window.removeEventListener('hashchange', handleHashChange);
     }, []);
 
+    const createAdminSession = async () => {
+        try {
+            const newSessionRef = push(ref(db, 'timers'));
+            await set(newSessionRef, initialState);
+            window.location.hash = `admin/${newSessionRef.key}`;
+        } catch (error) {
+            console.error("Error creating new session:", error);
+            alert("타이머를 생성하는데 실패했습니다. 다시 시도해주세요.");
+        }
+    };
 
     const renderContent = () => {
-        if (mode === null) {
-            return <div className="loading">Loading...</div>; // Initial loading state
+        if (mode === 'loading') {
+            return <div className="loading">Loading...</div>;
         }
 
         switch (mode) {
             case 'admin':
-                return <AdminDashboard appState={appState} updateAppState={updateAppState} setMode={setMode} />;
+                return <AdminDashboard appState={appState} sessionId={sessionId} updateRealtimeDBState={updateRealtimeDBState} />;
             case 'viewer':
                 return <ViewerView appState={appState} />;
             case 'select':
             default:
-                return <RoleSelection setMode={setMode} />;
+                return <RoleSelection createAdminSession={createAdminSession} />;
         }
     };
     
-    // Viewer mode gets a full-screen, immersive view
     if (mode === 'viewer') {
         return <ViewerView appState={appState} />;
     }
