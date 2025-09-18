@@ -48,7 +48,7 @@ const ViewerView = ({ appState }) => {
     const status = getStatus(remainingSeconds, isActive, isPaused);
 
     useEffect(() => {
-        document.body.className = `status-${status}`;
+        document.body.className = `viewer-mode status-${status}`;
         return () => {
             document.body.className = '';
         }
@@ -233,7 +233,8 @@ const App = () => {
                         window.location.hash = ''; // Redirect to home
                     }
                 });
-                setMode(hashMode as Mode);
+                // Convert 'view' to 'viewer' mode
+                setMode(hashMode === 'view' ? 'viewer' : hashMode as Mode);
 
             } else {
                 setSessionId(null);
@@ -280,10 +281,6 @@ const App = () => {
                 return <RoleSelection createAdminSession={createAdminSession} />;
         }
     };
-    
-    if (mode === 'viewer') {
-        return <ViewerView appState={appState} />;
-    }
 
     return (
         <div className="app-container">
