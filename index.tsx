@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { db } from './firebase';
-// fix: Removed unused v9 Firebase imports
+// FIX: Removed unused v9 modular imports from 'firebase/database' as we are switching to v8 compat syntax.
 // import { ref, set, onValue, update, push } from 'firebase/database';
 
 type Mode = 'select' | 'admin' | 'viewer' | 'loading';
@@ -181,7 +181,7 @@ const App = () => {
     // Update RealtimeDB with new state
     const updateRealtimeDBState = useCallback((newState) => {
         if (sessionId) {
-            // fix: Updated to use Firebase v8 namespaced API.
+            // FIX: Updated to v8 syntax for updating data (`db.ref(...).update(...)`).
             db.ref('timers/' + sessionId).update(newState);
         }
     }, [sessionId]);
@@ -211,11 +211,9 @@ const App = () => {
 
     // URL hash change listener to determine mode and session
     useEffect(() => {
-        // fix: Added proper subscription management to prevent memory leaks.
         let unsubscribeFromDB: (() => void) | null = null;
 
         const handleHashChange = () => {
-            // fix: Unsubscribe from any previous listener before creating a new one.
             if (unsubscribeFromDB) {
                 unsubscribeFromDB();
                 unsubscribeFromDB = null;
@@ -226,9 +224,10 @@ const App = () => {
 
             if ((hashMode === 'admin' || hashMode === 'view') && id) {
                 setSessionId(id);
-                // fix: Updated to use Firebase v8 namespaced API and added listener management.
+                // FIX: Updated to v8 syntax for creating a database reference (`db.ref(...)`).
                 const sessionRef = db.ref('timers/' + id);
-                const listener = (snapshot: any) => {
+                // FIX: Updated to v8 `on()` method for listening to data changes and created a compatible unsubscribe function.
+                const listener = (snapshot) => {
                     if (snapshot.exists()) {
                         setAppState(snapshot.val() as typeof initialState);
                     } else {
@@ -252,7 +251,6 @@ const App = () => {
 
         return () => {
             window.removeEventListener('hashchange', handleHashChange);
-            // fix: Ensure cleanup of the DB listener on component unmount.
             if (unsubscribeFromDB) {
                 unsubscribeFromDB();
             }
@@ -261,8 +259,9 @@ const App = () => {
 
     const createAdminSession = async () => {
         try {
-            // fix: Updated to use Firebase v8 namespaced API.
+            // FIX: Updated to v8 syntax for creating a new child item (`db.ref(...).push()`).
             const newSessionRef = db.ref('timers').push();
+            // FIX: Updated to v8 syntax for setting data (`ref.set(...)`).
             await newSessionRef.set(initialState);
             window.location.hash = `admin/${newSessionRef.key}`;
         } catch (error) {
