@@ -1,4 +1,5 @@
-import * as firebaseApp from "firebase/app";
+
+import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
@@ -13,6 +14,6 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-// FIX: Use the namespace import to call initializeApp
-const app = firebaseApp.initializeApp(firebaseConfig);
+// FIX: Use named import for initializeApp from firebase/app
+const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);

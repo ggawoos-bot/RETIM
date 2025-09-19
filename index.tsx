@@ -48,7 +48,7 @@ const ViewerView = ({ appState }) => {
     const status = getStatus(remainingSeconds, isActive, isPaused);
 
     useEffect(() => {
-        document.body.className = `viewer-mode status-${status}`;
+        document.body.className = `status-${status}`;
         return () => {
             document.body.className = '';
         }
@@ -69,7 +69,7 @@ const AdminDashboard = ({ appState, sessionId, updateFirestoreState }) => {
     const [showQr, setShowQr] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const shareUrl = `${window.location.origin}${window.location.pathname}#view/${sessionId}`;
+    const shareUrl = `${window.location.href.split('#')[0]}#view/${sessionId}`;
 
     useEffect(() => {
         setMinutes(Math.floor(appState.totalSeconds / 60));
@@ -233,8 +233,7 @@ const App = () => {
                         window.location.hash = ''; // Redirect to home
                     }
                 });
-                // Convert 'view' to 'viewer' mode
-                setMode(hashMode === 'view' ? 'viewer' : hashMode as Mode);
+                setMode(hashMode as Mode);
 
             } else {
                 setSessionId(null);
@@ -281,6 +280,10 @@ const App = () => {
                 return <RoleSelection createAdminSession={createAdminSession} />;
         }
     };
+    
+    if (mode === 'viewer') {
+        return <ViewerView appState={appState} />;
+    }
 
     return (
         <div className="app-container">

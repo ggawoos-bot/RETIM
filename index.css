@@ -79,63 +79,23 @@ h1, h2, h3 {
     justify-content: center;
     align-items: center;
     text-align: center;
-    padding: 2rem;
-    background-color: var(--color-white);
-    border-radius: 12px;
-    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    color: #000000;
+    padding: 1rem;
+    color: var(--color-white);
 }
-
-/* Override status colors for viewer mode - always use black text */
-.viewer-view .meeting-name, 
-.viewer-view .timer-display {
-    color: #000000 !important;
-}
-
-/* Clean background for viewer mode */
-body.viewer-mode {
-    background-color: #f8f9fa !important;
-}
-
-body.viewer-mode.status-green,
-body.viewer-mode.status-yellow,
-body.viewer-mode.status-red,
-body.viewer-mode.status-grey {
-    background-color: #f8f9fa !important;
-}
+.status-yellow .meeting-name, .status-yellow .timer-display { color: var(--color-dark-grey); }
+.status-default .meeting-name, .status-default .timer-display { color: var(--color-dark-grey); }
 
 .meeting-name {
     font-size: 4vw;
-    font-weight: 400;
-    margin-bottom: 2rem;
-    color: #333333;
-    text-shadow: none;
+    font-weight: 300;
+    margin-bottom: 1rem;
 }
 
 .timer-display {
     font-size: 15vw;
-    font-weight: 600;
-    letter-spacing: 3px;
-    line-height: 1;
-    color: #000000;
-    text-shadow: none;
-    font-family: 'Courier New', monospace;
-}
-
-/* Viewer specific styles */
-.viewer-view .meeting-name {
-    font-size: 3rem;
-    font-weight: 500;
-    margin-bottom: 3rem;
-    color: #2c3e50;
-}
-
-.viewer-view .timer-display {
-    font-size: 8rem;
     font-weight: 700;
-    letter-spacing: 4px;
-    color: #000000;
-    font-family: 'Courier New', monospace;
+    letter-spacing: 2px;
+    line-height: 1;
 }
 
 /* --- Admin Dashboard --- */
@@ -275,27 +235,5 @@ body.viewer-mode.status-grey {
     }
     .meeting-name {
         font-size: 3rem;
-    }
-    
-    /* Viewer responsive styles */
-    .viewer-view .timer-display {
-        font-size: 10rem;
-    }
-    .viewer-view .meeting-name {
-        font-size: 4rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .viewer-view {
-        padding: 1rem;
-    }
-    .viewer-view .timer-display {
-        font-size: 6rem;
-        letter-spacing: 2px;
-    }
-    .viewer-view .meeting-name {
-        font-size: 2rem;
-        margin-bottom: 2rem;
     }
 }
