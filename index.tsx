@@ -219,9 +219,10 @@ const App = () => {
             }
 
             const hash = window.location.hash.slice(1);
-            const [hashMode, id] = hash.split('/');
+            const [rawMode, id] = hash.split('/');
+            const hashMode = rawMode === 'view' ? 'viewer' : rawMode; // normalize to internal modes
 
-            if ((hashMode === 'admin' || hashMode === 'view') && id) {
+            if ((hashMode === 'admin' || hashMode === 'viewer') && id) {
                 setSessionId(id);
                 const sessionRef = doc(db, 'timers', id);
 
